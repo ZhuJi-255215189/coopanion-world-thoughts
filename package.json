@@ -1,0 +1,55 @@
+{
+  "name": "coopanion-world-thoughts",
+  "version": "0.2.0",
+  "description": "Coopanion World：把模型的思维链实时显示出来——她在想什么、想到哪了、什么时候开口；看不懂英文可以一键译成中文。只观察主 session 的推理流，不给工具、不推事件、不进对话。",
+  "type": "module",
+  "main": "./src/index.ts",
+  "files": [
+    "src",
+    "webui",
+    "scripts",
+    "describe.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "cortico-world",
+    "cortico",
+    "coopanion",
+    "companion",
+    "thoughts",
+    "reasoning",
+    "thinking"
+  ],
+  "author": "ZhuJi-255215189",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/thought.test.mjs"
+  },
+  "cortico": {
+    "kind": "world",
+    "api": 6,
+    "displayName": "思维链",
+    "describe": "describe.json",
+    "webUiClient": "webui/client.js",
+    "webUiStyle": "webui/style.css",
+    "tags": [
+      "diagnostics",
+      "companion"
+    ],
+    "locales": {
+      "zh": {
+        "displayName": "思维链",
+        "description": "看一眼她这轮回答之前想了什么。模型每吐一段推理，面板里就长一行；她开口说正文，这一段就收起来。\n\n**只观察**：挂在主 session 的输出流上，不给工具、不推事件、不写环境提示词；思维链只在面板里出现，不会进入对话上下文，也不影响她怎么说。\n\n**适合什么时候看**：想知道她为什么这么答、卡在哪一步、工具调用前在盘算什么。面板可以暂停、清空，也可以只留最近几段。\n\n**看不到内容？** 有些端点不返回思维链（只给正文），这种情况下面板会一直空着——这不是插件坏了。"
+      },
+      "en": {
+        "displayName": "Thoughts",
+        "description": "See what she thinks before she answers. Every reasoning delta grows a line in the panel; when she starts speaking, the block closes.\n\n**Observe only**: it taps the main session's output stream. No tools, no events, no environment prompt; thoughts stay on the panel and never enter the conversation, so nothing about how she answers changes.\n\n**When it helps**: understanding why she answered that way, where she stalled, or what she was weighing before a tool call. The panel can pause, clear, and keep only the last few blocks.\n\n**Nothing shows up?** Some endpoints return no reasoning at all (text only), and then the panel stays empty. That is the endpoint, not the plugin."
+      }
+    }
+  }
+}
