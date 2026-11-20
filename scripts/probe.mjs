@@ -47,6 +47,10 @@ const world = definition.create({
 
 await world.start({ log: { info() {}, warn() {}, error() {}, debug() {}, trace() {}, emit() {} } });
 
+/** 插件的绑定标记：桌宠补丁靠它决定气泡里显不显示思考。 */
+const BUBBLE_KEY = Symbol.for('dsh.thoughts.bubble');
+const boundAtStart = globalThis[BUBBLE_KEY];
+
 const ui = world.webUi('zh');
 /** 假的面板连接：收到的每一帧都记下来。 */
 const frames = [];
@@ -72,6 +76,7 @@ const afterAnswer = await ui.invoke('live', 'snapshot');
 
 // 暂停后不应再收新段
 await ui.invoke('live', 'pause');
+const boundWhilePaused = globalThis[BUBBLE_KEY]?.paused;
 tap.onEvent({ type: 'response.created' });
 tap.onEvent({ type: 'response.reasoning.delta', delta: '暂停时不该出现' });
 const whilePaused = await ui.invoke('live', 'snapshot');
@@ -85,8 +90,11 @@ try {
 } catch (error) {
   translation = { ok: false, error: error instanceof Error ? error.message : String(error) };
 }
+/** 翻译完成后，绑定标记里应该有中文，气泡据此显示。 */
+const boundAfterTranslate = { ...globalThis[BUBBLE_KEY] };
 
 await world.stop();
+const boundAtStop = globalThis[BUBBLE_KEY];
 
 /** 照客户端 client.js 的算法重放一遍帧，确认拼出来的正文和服务端一致、不重复。 */
 const painted = [];
@@ -111,5 +119,13 @@ console.log(JSON.stringify({
   afterAnswer,
   paused: { cfgPaused: cfg.paused, blocks: whilePaused.blocks.length },
   translation,
+  bound: {
+    atStart: !!boundAtStart,
+    pausedAtStart: boundAtStart?.paused,
+    fallback: boundAtStart?.fallback,
+    pausedWhilePaused: boundWhilePaused,
+    zhAfterTranslate: boundAfterTranslate.zh,
+    afterStop: boundAtStop === undefined,
+  },
   painted,
 }, null, 2));

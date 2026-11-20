@@ -1,6 +1,6 @@
 {
   "name": "coopanion-world-thoughts",
-  "version": "0.2.0",
+  "version": "0.2.4",
   "description": "Coopanion World：把模型的思维链实时显示出来——她在想什么、想到哪了、什么时候开口；看不懂英文可以一键译成中文。只观察主 session 的推理流，不给工具、不推事件、不进对话。",
   "repository": {
     "type": "git",

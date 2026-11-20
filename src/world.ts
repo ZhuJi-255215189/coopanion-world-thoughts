@@ -18,6 +18,15 @@ import { translateThinking, type Translated } from './translate.ts';
 /** 增量往面板推的合批间隔：够快看出在长字，又不至于一 token 一帧。 */
 const FLUSH_MS = 60;
 
+/**
+ * 与桌宠宿主补丁共享的绑定标记（`scripts/patch-pet-bubble.ps1`）。
+ *
+ * 插件在跑：标记在，桌宠的「思考」活动气泡显示最后一句思考；
+ * 插件停用/被卸载：标记删掉，气泡退回只有思考图标。
+ * 两边用同一个 `Symbol.for` 键，不引入文件或进程间通信。
+ */
+const BUBBLE_KEY = Symbol.for('dsh.thoughts.bubble');
+
 export interface ThoughtsWorldOptions {
   cfg: ThoughtsConfigSection;
   persist: (patch: Partial<ThoughtsConfigSection>) => void;
@@ -37,6 +46,14 @@ export class ThoughtsWorld implements World {
   private readonly translations = new Map<string, string>();
   /** 正在翻译的段，按 id 记下是哪一段（清空后同 id 的新段不会被误认）。 */
   private readonly translating = new Map<string, ThoughtBlock>();
+  /** 给宿主桌宠补丁看的绑定状态；插件停用后整个标记会被删掉。 */
+  private readonly bubble: { paused: boolean; zh: string; fallback: string } = {
+    paused: false,
+    /** 最近一段已译好的中文；气泡只显示它，不显示英文原文。 */
+    zh: '',
+    /** 第一段还没译好、或还没开自动译时的中文占位，避免气泡空着。 */
+    fallback: '正在想…',
+  };
   /** 还没发出去的增量，按段合并；面板不在时直接丢。 */
   private pending = new Map<string, string>();
   private flushTimer: NodeJS.Timeout | null = null;
@@ -80,6 +97,10 @@ export class ThoughtsWorld implements World {
 
   async start(host: WorldHost): Promise<void> {
     this.host = host;
+    // 绑定桌宠气泡：插件在跑才显示思考；暂停记录时气泡也退回只有图标。
+    this.bubble.paused = readThoughtsConfig(this.cfg).paused;
+    this.bubble.zh = '';
+    (globalThis as unknown as Record<symbol, unknown>)[BUBBLE_KEY] = this.bubble;
     try {
       host.log.info('思维链：World 启动（只观察主 session 的推理流）');
     } catch {
@@ -89,6 +110,8 @@ export class ThoughtsWorld implements World {
 
   async stop(): Promise<void> {
     this.endLive('done');
+    // 插件停了，桌宠气泡就不再显示思考文本。
+    delete (globalThis as unknown as Record<symbol, unknown>)[BUBBLE_KEY];
     if (this.flushTimer) clearTimeout(this.flushTimer);
     this.flushTimer = null;
     this.pending.clear();
@@ -192,6 +215,9 @@ export class ThoughtsWorld implements World {
       if (this.blocks.find(id) !== block) return this.view(block);
       this.translations.set(id, result.text);
       this.reportUsage(result);
+      // 桌宠气泡：只有"最新一段"的译文才更新，手动翻旧段不会把气泡倒退。
+      const newest = this.blocks.list()[0];
+      if (newest && newest.id === id) this.bubble.zh = result.text;
       this.broadcast({ t: 'translated', id, text: result.text });
       return this.view(block);
     } catch (error) {
@@ -317,12 +343,14 @@ export class ThoughtsWorld implements World {
           case 'clear':
             this.blocks.clear();
             this.translations.clear();
+            this.bubble.zh = '';
             this.broadcast({ t: 'clear' });
             return this.snapshot();
           case 'pause':
           case 'resume': {
             const paused = method === 'pause';
             this.persist({ paused });
+            this.bubble.paused = paused;
             this.broadcast({ t: 'paused', paused });
             return this.snapshot();
           }
