@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readStreamEvent, THOUGHT_SYMBOL, ThoughtLog } from '../src/thought.ts';
+import { isMostlyChinese, readStreamEvent, THOUGHT_SYMBOL, ThoughtLog } from '../src/thought.ts';
 
 test('符号就是面板上用的那个', () => {
   assert.equal(THOUGHT_SYMBOL, '✻');
@@ -141,4 +141,12 @@ test('readStreamEvent 对无关或坏事件不抛错', () => {
   assert.deepEqual(readStreamEvent({ type: 'response.completed' }), { kind: 'none' });
   assert.deepEqual(readStreamEvent({ type: 'response.reasoning.delta', delta: '' }), { kind: 'none' });
   assert.deepEqual(readStreamEvent({ type: 'response.reasoning.delta', delta: 42 }), { kind: 'none' });
+});
+
+test('isMostlyChinese 认中文原文，不被工具名带偏', () => {
+  assert.equal(isMostlyChinese('先调用 pet_say 说一句，再 browser_search 搜天气。'), true);
+  assert.equal(isMostlyChinese('This is an English thought.'), false);
+  assert.equal(isMostlyChinese(''), false);
+  assert.equal(isMostlyChinese('pet_say browser_search'), false);
+  assert.equal(isMostlyChinese('代码路径 src/index.ts 保持原样，其余用中文说明。'), true);
 });

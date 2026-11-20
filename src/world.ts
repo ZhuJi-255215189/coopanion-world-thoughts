@@ -12,7 +12,7 @@
 import type { OutputTap, ToolDef, World, WorldHost, WorldStreamSocket, WorldWebUiDecl } from 'cortico/core/types.ts';
 import type { Language } from 'cortico/core/language.ts';
 import { configGroups, readThoughtsConfig, THOUGHTS_ID, type ThoughtsConfigSection } from './config.ts';
-import { readStreamEvent, THOUGHT_SYMBOL, ThoughtLog, type ThoughtBlock, type ThoughtLimits } from './thought.ts';
+import { isMostlyChinese, readStreamEvent, THOUGHT_SYMBOL, ThoughtLog, type ThoughtBlock, type ThoughtLimits } from './thought.ts';
 import { translateThinking, type Translated } from './translate.ts';
 
 /** 增量往面板推的合批间隔：够快看出在长字，又不至于一 token 一帧。 */
@@ -52,7 +52,7 @@ export class ThoughtsWorld implements World {
     /** 最近一段已译好的中文；气泡只显示它，不显示英文原文。 */
     zh: '',
     /** 第一段还没译好、或还没开自动译时的中文占位，避免气泡空着。 */
-    fallback: '正在想…',
+    fallback: '正在想（翻译中）',
   };
   /** 还没发出去的增量，按段合并；面板不在时直接丢。 */
   private pending = new Map<string, string>();
@@ -148,6 +148,8 @@ export class ThoughtsWorld implements World {
         const block = this.blocks.append(signal.text!);
         // 开段帧不带正文、字数从零起：这一段已经收下的增量会随 delta 帧补到面板，带上就会重复。
         if (block.id !== before) this.broadcast({ t: 'begin', block: { ...this.view(block), text: '', chars: 0 } });
+        // 原文已经是中文时直接上气泡：不用等翻译回来，也没有翻译那一段延迟。
+        if (isMostlyChinese(block.text)) this.bubble.zh = block.text;
         this.queueDelta(block.id, signal.text!);
         return;
       }
@@ -210,7 +212,11 @@ export class ThoughtsWorld implements World {
     this.translating.set(id, block);
     this.broadcast({ t: 'translating', id, on: true });
     try {
-      const result = await translateThinking(this.botDir, block.text, { timeoutMs: 90_000 });
+      const result = await translateThinking(this.botDir, block.text, {
+        timeoutMs: 90_000,
+        // 原文已是中文：直接返回原文，不再花一次翻译。
+        chineseSource: isMostlyChinese(block.text),
+      });
       // 清空或换了新段时，旧结果直接丢掉。
       if (this.blocks.find(id) !== block) return this.view(block);
       this.translations.set(id, result.text);

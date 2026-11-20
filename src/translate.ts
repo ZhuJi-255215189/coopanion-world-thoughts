@@ -6,6 +6,8 @@
  * 先走 Responses，404/405 退回 Chat Completions。区别只有两点：
  *   · 只做纯文本，不带工具；
  *   · 翻译请求显式关掉思考（`reasoning: { effort: 'none' }`），不额外烧 reasoning token。
+ *
+ * 原文已经是中文时（`chineseSource`）直接返回原文，不调模型——中文再翻一遍只是白花钱。
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -243,14 +245,18 @@ async function callOnce(
 /**
  * 翻一段思考。失败抛 `TranslateError`，错误文本是给人看的；
  * 端点不可用时也走这里，面板把原话显示出来即可。
+ *
+ * `chineseSource`：原文已经是中文，直接返回原文，不花钱再翻一遍。
  */
 export async function translateThinking(
   botDir: string,
   text: string,
-  opts: { timeoutMs?: number; signal?: AbortSignal } = {},
+  opts: { timeoutMs?: number; signal?: AbortSignal; chineseSource?: boolean } = {},
 ): Promise<Translated> {
   const source = text.trim();
   if (!source) throw new TranslateError('这一段还没有内容，没什么可翻的。');
+  if (opts.chineseSource) return { text: source, model: '原文（中文）' };
+
   const { endpoint, error } = resolveTranslateEndpoint(botDir);
   if (!endpoint) throw new TranslateError(error ?? '模型端点不可用');
   const timeoutMs = opts.timeoutMs ?? 90_000;

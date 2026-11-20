@@ -37,6 +37,20 @@ export interface ThoughtLimits {
 
 export const THOUGHT_LIMITS: ThoughtLimits = { maxBlocks: 40, maxChars: 20_000 };
 
+/**
+ * 这段思考是不是「以中文为主」：至少 4 个汉字，且汉字占中英文合计的 15% 以上。
+ *
+ * 阈值为什么这么低：中文推理里 `pet_say`、`browser_search`、`read_file` 这类工具名/标识符
+ * 会反复出现，字符数很占便宜；实测英文思考里零星中文词只占 3%–8%，中文推理（夹工具名）
+ * 也在 34% 以上，0.15 正好把两边分开。
+ */
+export function isMostlyChinese(text: string): boolean {
+  const zh = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+  if (zh < 4) return false;
+  const latin = (text.match(/[A-Za-z]/g) || []).length;
+  return zh / (zh + latin) >= 0.15;
+}
+
 /** 从输出流事件里认出的几类信号。 */
 export type StreamKind = 'round' | 'delta' | 'finished' | 'answer' | 'tool' | 'none';
 

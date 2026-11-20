@@ -65,14 +65,23 @@ ui.stream('live', socket);
 
 const tap = world.outputTap();
 tap.onEvent({ type: 'response.created' });
-tap.onEvent({ type: 'response.reasoning.delta', delta: '对方问的是插件' });
-tap.onEvent({ type: 'response.reasoning.delta', delta: '，先看她装没装。' });
+tap.onEvent({ type: 'response.reasoning.delta', delta: 'The user asks about the plugin. ' });
+tap.onEvent({ type: 'response.reasoning.delta', delta: 'Check whether it is installed first.' });
 // 等增量合批的定时器把 delta 发出去
 await new Promise((resolve) => setTimeout(resolve, 120));
 const beforeAnswer = await ui.invoke('live', 'snapshot');
 
 tap.onEvent({ type: 'response.output_text.delta', delta: '我来看看。' });
 const afterAnswer = await ui.invoke('live', 'snapshot');
+
+// 第二段：中文原文。不调模型，气泡在增量到达时就该直接变中文。
+tap.onEvent({ type: 'response.created' });
+tap.onEvent({ type: 'response.reasoning.delta', delta: '她问的是插件，' });
+tap.onEvent({ type: 'response.reasoning.delta', delta: '先看装没装。' });
+await new Promise((resolve) => setTimeout(resolve, 50));
+const liveZh = { ...globalThis[BUBBLE_KEY] };
+const zhBlock = await ui.invoke('live', 'translate', ['t2']);
+const afterZhTranslate = { ...globalThis[BUBBLE_KEY] };
 
 // 暂停后不应再收新段
 await ui.invoke('live', 'pause');
@@ -109,8 +118,9 @@ for (const frame of frames) {
   } else if (frame.t === 'clear') painted.length = 0;
 }
 const expected = afterAnswer.blocks[0]?.text;
-if (painted[0]?.text !== expected) {
-  throw new Error(`客户端拼出来的正文和服务端不一致：${JSON.stringify(painted[0]?.text)} ≠ ${JSON.stringify(expected)}`);
+const paintedFirst = painted.find((block) => block.id === afterAnswer.blocks[0]?.id);
+if (paintedFirst?.text !== expected) {
+  throw new Error(`客户端拼出来的正文和服务端不一致：${JSON.stringify(paintedFirst?.text)} ≠ ${JSON.stringify(expected)}`);
 }
 
 console.log(JSON.stringify({
@@ -125,6 +135,9 @@ console.log(JSON.stringify({
     fallback: boundAtStart?.fallback,
     pausedWhilePaused: boundWhilePaused,
     zhAfterTranslate: boundAfterTranslate.zh,
+    liveZh: liveZh.zh,
+    zhShortCircuit: zhBlock?.translated,
+    afterZhTranslate: afterZhTranslate.zh,
     afterStop: boundAtStop === undefined,
   },
   painted,
