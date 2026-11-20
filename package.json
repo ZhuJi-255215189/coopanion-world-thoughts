@@ -1,7 +1,7 @@
 {
   "name": "coopanion-world-thoughts",
   "version": "0.2.5",
-  "description": "Coopanion World：把模型的思维链实时显示出来——她在想什么、想到哪了、什么时候开口；看不懂英文可以一键译成中文。只观察主 session 的推理流，不给工具、不推事件、不进对话。",
+  "description": "Coopanion World：把模型的思维链实时显示出来——她在想什么、想到哪了、什么时候开口；看不懂英文可以一键译成中文。只观察主 session 的推理流，不给工具、不推事件、不进对话。总在点「译」的话，配合同系列的「思考中文」World 让模型直接用中文推理，比逐段翻译省。",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ZhuJi-255215189/coopanion-world-thoughts.git"
